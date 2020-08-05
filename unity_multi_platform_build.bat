@@ -1,5 +1,6 @@
 :: Title:            unity_multi_platform_build.bat
-:: Description:      Builds unity projects for multiple platforms
+:: Description:      Builds unity projects for multiple platforms and uploads the webgl build
+::                   to the repo's gh-pages branch
 :: Requirements:     Windows environment
 ::                   7z and git must be in the path environment variable
 ::                   This batch script must be at the root of the project
@@ -21,7 +22,17 @@ setlocal enabledelayedexpansion
 
 if exist "%~dp0build" (
   pushd "%~dp0build"
-  for /F "delims=" %%i in ('dir /b') do (rmdir "%%i" /s/q || del "%%i" /s/q) 2>nul
+  for /F "delims=" %%i in ('dir /b') do (
+    for %%j in (%%i) do (
+	  if exist %%~sj\nul (
+	    echo Deleted folder - "%~dp0build\%%i"
+	    rmdir "%%i" /s/q
+	  ) else (
+	    echo Deleted file - "%~dp0build\%%i"
+	    del "%%i"
+	  )
+	)
+  )
   popd
 )
 
@@ -29,9 +40,9 @@ set UNITY_HOME=C:\Program Files\Unity\Hub\Editor\2017.4.40f1\Editor\Unity.exe
 "%UNITY_HOME%" -quit -batchmode -executeMethod BuildScript.BuildAll
 
 pushd build
-for /d /r %%G in ("*win_x*") do call :CreateZip %%~nxG
-for /d /r %%G in ("*lin_x*") do call :CreateTarGz %%~nxG
-for /d /r %%G in ("*webgl*") do (
+for /d %%G in ("*win_x*") do call :CreateZip %%~nxG
+for /d %%G in ("*lin_x*") do call :CreateTarGz %%~nxG
+for /d %%G in ("*webgl*") do (
   call :CreateZip %%~nxG
   call :CommitWeb %%~nxG
 )
