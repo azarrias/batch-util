@@ -1,45 +1,62 @@
 :: Title:            unity_multi_platform_build.bat
 :: Description:      Builds unity projects for multiple platforms
 :: Requirements:     Windows environment
-::                   7z and wget must be in the path environment variable
+::                   7z and git must be in the path environment variable
+::                   This batch script must be at the root of the project
+::                   Needs to find BuildScript.cs in the file subtree
+::                   UNITY_HOME needs to point to the appropriate installed version of Unity
+::                   GITHUB_TOKEN must be available in the environment, or set manually here
+::                   The project which you want to build can't be open
 :: Author:           azarrias
-:: Date:             20181202
-:: Usage:            unity_multi_platform_build.bat "super-sparty-bros" "1.0.0"
+:: Usage:            unity_multi_platform_build.bat
+::================================================================================
 
 @echo off
 setlocal enabledelayedexpansion
 
-set v_arg_count=0
-for %%x in (%*) do (
-   set /A v_arg_count+=1
+::Use this to locate Unity installations in the system drive, if you need
+::pushd %SYSTEMDRIVE%\
+::dir unity.exe /b /s
+::popd
+
+if exist "%~dp0build" (
+  pushd "%~dp0build"
+  for /F "delims=" %%i in ('dir /b') do (rmdir "%%i" /s/q || del "%%i" /s/q) 2>nul
+  popd
 )
 
-if %v_arg_count% NEQ 2 (
-   echo ERROR: You entered %v_arg_count% arguments.
-   echo This script must be run with exactly two arguments
-   echo (the base name of the build plus the version^).
-   echo e.g. %~nx0 "super-sparty-bros" "1.0.0"
-   exit /b 1
+set UNITY_HOME=C:\Program Files\Unity\Hub\Editor\2017.4.40f1\Editor\Unity.exe
+"%UNITY_HOME%" -quit -batchmode -executeMethod BuildScript.BuildAll
+
+pushd build
+for /d /r %%G in ("*win_x*") do call :CreateZip %%~nxG
+for /d /r %%G in ("*lin_x*") do call :CreateTarGz %%~nxG
+for /d /r %%G in ("*webgl*") do (
+  call :CreateZip %%~nxG
+  call :CommitWeb %%~nxG
 )
-
-set V_BASE_NAME=%1
-set V_VERSION=%2
-set V_BUILD_NAME=%V_BASE_NAME%-%V_VERSION%
-
-set V_PLATFORMS[0]=android
-set V_PLATFORMS[1]=webgl
-set V_PLATFORMS[2]=win_x86_64
-
-set v_iter=0
+popd
+exit /b %ERRORLEVEL%
 
 :CreateZip
-if defined V_PLATFORMS[%v_iter%] (
-    call 7z.exe a %V_BUILD_NAME%-%%V_PLATFORMS[%v_iter%]%%.zip %V_BUILD_NAME%-%%V_PLATFORMS[%v_iter%]%%
-    set /A v_iter+=1
-    GOTO :CreateZip
-)
+7z.exe a %~1.zip %~1
+exit /b 0
 
-:: Create .tar.gz for linux build
-7z.exe a -ttar -so %V_BUILD_NAME%-lin_x86_64.tar %V_BUILD_NAME%-lin_x86_64 | 7z.exe a -si %V_BUILD_NAME%-lin_x86_64.tar.gz
+:CreateTarGz
+7z.exe a -ttar -so %~1.tar %~1 | 7z.exe a -si %~1.tar.gz
+exit /b 0
+
+:CommitWeb
+for /f %%i in ('git config --get remote.origin.url') do set git_remote=%%i
+set "x=%git_remote:github.com=" & set "git_repo=%"
+pushd %~1
+git init
+git config user.name "autodeploy"
+git config user.email "autodeploy"
+git add .
+git commit -m "deploy to github pages"
+git push --force --quiet "https://%GITHUB_TOKEN%@github.com%git_repo%" master:gh-pages
+popd
+exit /b 0
 
 endlocal
