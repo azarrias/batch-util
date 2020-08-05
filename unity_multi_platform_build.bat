@@ -62,10 +62,8 @@ for /f %%i in ('git config --get remote.origin.url') do set git_remote=%%i
 set "x=%git_remote:github.com=" & set "git_repo=%"
 pushd %~1
 git init
-git config user.name "autodeploy"
-git config user.email "autodeploy"
 git add .
-git commit -m "deploy to github pages"
+git commit -m "Deploy %~1 to github pages"
 git push --force --quiet "https://%GITHUB_TOKEN%@github.com%git_repo%" master:gh-pages
 popd
 exit /b 0
