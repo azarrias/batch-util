@@ -36,6 +36,7 @@ if exist "%~dp0build" (
   popd
 )
 
+echo [Building]
 set UNITY_HOME=C:\Program Files\Unity\Hub\Editor\2017.4.40f1\Editor\Unity.exe
 "%UNITY_HOME%" -quit -batchmode -executeMethod BuildScript.BuildAll
 
@@ -50,14 +51,17 @@ popd
 exit /b %ERRORLEVEL%
 
 :CreateZip
+echo [Packing %~1]
 7z.exe a %~1.zip %~1
 exit /b 0
 
 :CreateTarGz
+echo [Packing %~1]
 7z.exe a -ttar -so %~1.tar %~1 | 7z.exe a -si %~1.tar.gz
 exit /b 0
 
 :CommitWeb
+echo [Pushing %~1 to %git_repo% gh-pages branch]
 for /f %%i in ('git config --get remote.origin.url') do set git_remote=%%i
 set "x=%git_remote:github.com=" & set "git_repo=%"
 pushd %~1
